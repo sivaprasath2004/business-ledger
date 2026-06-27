@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,11 +10,12 @@ import {
   Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import {
-  TrendingUp, TrendingDown, Wallet, Plus, Calendar as CalIcon, ArrowUpRight, ArrowDownRight,
-  CircleDollarSign, AlertCircle, ArrowRight, FileText, Users,
+  TrendingUp, TrendingDown, Wallet, Plus, Calendar as CalIcon,
+  ArrowUpRight, ArrowDownRight, CircleDollarSign, AlertCircle,
+  ArrowRight, FileText, Users,
 } from "lucide-react";
 import {
-  formatCurrency, formatDate, formatRelative,
+  formatCurrency, formatDate,
   startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, toISODate,
 } from "@/lib/format";
 
@@ -27,6 +28,7 @@ function Dashboard() {
   const { user, profile } = useAuth();
   const { currency, locale } = useCurrency();
   const [openNew, setOpenNew] = useState(false);
+  const navigate = useNavigate();
 
   const { data: stats } = useQuery({
     queryKey: ["dashboard", "stats", user?.id],
@@ -46,6 +48,7 @@ function Dashboard() {
         sums[k] = {
           income: (data ?? []).filter((d) => d.type === "income").reduce((s, d) => s + Number(d.amount), 0),
           expense: (data ?? []).filter((d) => d.type === "expense").reduce((s, d) => s + Number(d.amount), 0),
+          from: a, to: b,
         };
       }
       const { data: outstanding } = await supabase.from("invoices")
@@ -82,7 +85,7 @@ function Dashboard() {
     queryKey: ["dashboard", "recent", user?.id],
     enabled: !!user,
     queryFn: async () => (await supabase.from("ledger_entries")
-      .select("*").order("created_at", { ascending: false }).limit(8)).data ?? [],
+      .select("*").eq("archived", false).order("created_at", { ascending: false }).limit(8)).data ?? [],
   });
 
   const { data: upcoming } = useQuery({
@@ -95,12 +98,25 @@ function Dashboard() {
 
   const todayNet = (stats?.day?.income ?? 0) - (stats?.day?.expense ?? 0);
   const monthNet = (stats?.month?.income ?? 0) - (stats?.month?.expense ?? 0);
+  const today = toISODate(new Date());
+  const monthStart = toISODate(startOfMonth(new Date()));
+  const monthEnd = toISODate(endOfMonth(new Date()));
+  const yearStart = toISODate(startOfYear(new Date()));
+
+  // Navigate to ledger with filters encoded in URL search params
+  function goToLedger(params: { type?: string; dateFrom?: string; dateTo?: string }) {
+    const search = new URLSearchParams();
+    if (params.type) search.set("type", params.type);
+    if (params.dateFrom) search.set("from", params.dateFrom);
+    if (params.dateTo) search.set("to", params.dateTo);
+    navigate({ to: "/ledger", search: Object.fromEntries(search) as any });
+  }
 
   return (
     <>
       <PageHeader
         title={`${greet()}, ${profile?.full_name?.split(" ")[0] ?? profile?.username ?? "there"}`}
-        description={profile?.business_name ? `Here's how ${profile.business_name} is doing today.` : "Here's how your business is doing today."}
+        description={profile?.business_name ? `Here's how ${profile.business_name} is doing today.` : "Here's how stuf is doing today."}
         action={
           <Button onClick={() => setOpenNew(true)} className="gradient-primary text-white border-0 shadow-glow">
             <Plus className="h-4 w-4 mr-1.5" /> New Entry
@@ -108,18 +124,52 @@ function Dashboard() {
         }
       />
 
+      {/* Today's stats - clickable */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Today's Revenue" value={formatCurrency(stats?.day?.income ?? 0, currency, locale)} icon={TrendingUp} tone="income" />
-        <StatCard label="Today's Expense" value={formatCurrency(stats?.day?.expense ?? 0, currency, locale)} icon={TrendingDown} tone="expense" />
-        <StatCard label="Today's Net" value={formatCurrency(todayNet, currency, locale)} icon={CircleDollarSign} tone={todayNet >= 0 ? "income" : "expense"} />
-        <StatCard label="Outstanding" value={formatCurrency(stats?.outstanding ?? 0, currency, locale)} icon={AlertCircle} tone="warning" />
+        <StatCard
+          label="Today's Revenue" value={formatCurrency(stats?.day?.income ?? 0, currency, locale)}
+          icon={TrendingUp} tone="income"
+          onClick={() => goToLedger({ type: "income", dateFrom: today, dateTo: today })}
+        />
+        <StatCard
+          label="Today's Expense" value={formatCurrency(stats?.day?.expense ?? 0, currency, locale)}
+          icon={TrendingDown} tone="expense"
+          onClick={() => goToLedger({ type: "expense", dateFrom: today, dateTo: today })}
+        />
+        <StatCard
+          label="Today's Net" value={formatCurrency(todayNet, currency, locale)}
+          icon={CircleDollarSign} tone={todayNet >= 0 ? "income" : "expense"}
+          onClick={() => goToLedger({ dateFrom: today, dateTo: today })}
+        />
+        <StatCard
+          label="Outstanding" value={formatCurrency(stats?.outstanding ?? 0, currency, locale)}
+          icon={AlertCircle} tone="warning"
+          onClick={() => navigate({ to: "/invoices" })}
+        />
       </div>
 
+      {/* Monthly/yearly stats - clickable */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Monthly Revenue" value={formatCurrency(stats?.month?.income ?? 0, currency, locale)} icon={TrendingUp} tone="income" small />
-        <StatCard label="Monthly Expense" value={formatCurrency(stats?.month?.expense ?? 0, currency, locale)} icon={TrendingDown} tone="expense" small />
-        <StatCard label="Monthly Net" value={formatCurrency(monthNet, currency, locale)} icon={Wallet} tone={monthNet >= 0 ? "income" : "expense"} small />
-        <StatCard label="Yearly Revenue" value={formatCurrency(stats?.year?.income ?? 0, currency, locale)} icon={TrendingUp} tone="default" small />
+        <StatCard
+          label="Monthly Revenue" value={formatCurrency(stats?.month?.income ?? 0, currency, locale)}
+          icon={TrendingUp} tone="income" small
+          onClick={() => goToLedger({ type: "income", dateFrom: monthStart, dateTo: monthEnd })}
+        />
+        <StatCard
+          label="Monthly Expense" value={formatCurrency(stats?.month?.expense ?? 0, currency, locale)}
+          icon={TrendingDown} tone="expense" small
+          onClick={() => goToLedger({ type: "expense", dateFrom: monthStart, dateTo: monthEnd })}
+        />
+        <StatCard
+          label="Monthly Net" value={formatCurrency(monthNet, currency, locale)}
+          icon={Wallet} tone={monthNet >= 0 ? "income" : "expense"} small
+          onClick={() => goToLedger({ dateFrom: monthStart, dateTo: monthEnd })}
+        />
+        <StatCard
+          label="Yearly Revenue" value={formatCurrency(stats?.year?.income ?? 0, currency, locale)}
+          icon={TrendingUp} tone="default" small
+          onClick={() => goToLedger({ type: "income", dateFrom: yearStart, dateTo: today })}
+        />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 mb-6">
@@ -129,7 +179,9 @@ function Dashboard() {
               <h3 className="font-semibold">Cash flow — Last 30 days</h3>
               <p className="text-xs text-muted-foreground">Income vs Expense, daily</p>
             </div>
-            <Button asChild variant="ghost" size="sm"><Link to="/reports">View reports <ArrowRight className="h-3.5 w-3.5 ml-1" /></Link></Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/reports">View reports <ArrowRight className="h-3.5 w-3.5 ml-1" /></Link>
+            </Button>
           </div>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -145,60 +197,48 @@ function Dashboard() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickFormatter={(d) => new Date(d).toLocaleDateString(locale, { day: "numeric", month: "short" })} axisLine={false} tickLine={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  tickFormatter={(d) => new Date(d).toLocaleDateString(locale, { day: "numeric", month: "short" })}
+                  axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={50} />
                 <Tooltip
-                  contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }}
-                  formatter={(v: any, n) => [formatCurrency(v, currency, locale), n]}
-                  labelFormatter={(d) => formatDate(d as string)}
+                  contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "0.75rem", fontSize: 12 }}
+                  formatter={(v: any, name: string) => [formatCurrency(v, currency, locale), name === "income" ? "Income" : "Expense"]}
+                  labelFormatter={(l) => new Date(l).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" })}
                 />
-                <Area type="monotone" dataKey="income" stroke="var(--income)" fill="url(#g-income)" strokeWidth={2} />
-                <Area type="monotone" dataKey="expense" stroke="var(--expense)" fill="url(#g-expense)" strokeWidth={2} />
+                <Area type="monotone" dataKey="income" stroke="var(--income)" strokeWidth={2} fill="url(#g-income)" />
+                <Area type="monotone" dataKey="expense" stroke="var(--expense)" strokeWidth={2} fill="url(#g-expense)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="surface-card rounded-2xl p-5 flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold flex items-center gap-2"><CalIcon className="h-4 w-4 text-primary" /> Upcoming</h3>
-            <Button asChild variant="ghost" size="sm"><Link to="/calendar">Calendar</Link></Button>
+        <div className="surface-card rounded-2xl p-5">
+          <h3 className="font-semibold mb-4">Quick actions</h3>
+          <div className="space-y-2">
+            <Action onClick={() => setOpenNew(true)} icon={Plus} label="Add ledger entry" />
+            <Action to="/invoices" icon={FileText} label="Create invoice" />
+            <Action to="/customers" icon={Users} label="Add customer" />
+            <Action to="/calendar" icon={CalIcon} label="Schedule event" />
+            <Action to="/reports" icon={TrendingUp} label="View reports" />
           </div>
-          {!upcoming?.length ? (
-            <div className="text-sm text-muted-foreground flex-1 grid place-items-center text-center">
-              No upcoming events.<br />
-              <Link to="/calendar" className="text-primary hover:underline mt-1 inline-block">Add one →</Link>
-            </div>
-          ) : (
-            <ul className="space-y-3">
-              {upcoming.map((e) => (
-                <li key={e.id} className="flex gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary grid place-items-center text-xs font-semibold">
-                    {new Date(e.starts_at).toLocaleDateString(locale, { day: "2-digit" })}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{e.title}</div>
-                    <div className="text-xs text-muted-foreground">{formatRelative(e.starts_at)} · {e.event_type}</div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 surface-card rounded-2xl p-5">
+      <div className="grid lg:grid-cols-2 gap-4">
+        <div className="surface-card rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold">Recent transactions</h3>
-            <Button asChild variant="ghost" size="sm"><Link to="/ledger">View all <ArrowRight className="h-3.5 w-3.5 ml-1" /></Link></Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/ledger">View all <ArrowRight className="h-3.5 w-3.5 ml-1" /></Link>
+            </Button>
           </div>
           {!recent?.length ? (
-            <div className="text-sm text-muted-foreground py-12 text-center">No transactions yet.</div>
+            <div className="text-center text-muted-foreground text-sm py-8">No transactions yet</div>
           ) : (
-            <div className="space-y-1">
-              {recent.map((r) => (
-                <div key={r.id} className="flex items-center gap-3 py-2.5 px-2 -mx-2 rounded-lg hover:bg-accent/40 transition-colors">
+            <div className="space-y-3">
+              {recent.map((r: any) => (
+                <div key={r.id} className="flex items-center gap-3">
                   <div className={`h-9 w-9 rounded-lg grid place-items-center ${r.type === "income" ? "bg-income/10 text-income" : "bg-expense/10 text-expense"}`}>
                     {r.type === "income" ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
                   </div>
@@ -216,14 +256,29 @@ function Dashboard() {
         </div>
 
         <div className="surface-card rounded-2xl p-5">
-          <h3 className="font-semibold mb-4">Quick actions</h3>
-          <div className="space-y-2">
-            <Action onClick={() => setOpenNew(true)} icon={Plus} label="Add ledger entry" />
-            <Action to="/invoices" icon={FileText} label="Create invoice" />
-            <Action to="/customers" icon={Users} label="Add customer" />
-            <Action to="/calendar" icon={CalIcon} label="Schedule event" />
-            <Action to="/reports" icon={TrendingUp} label="View reports" />
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold">Upcoming events</h3>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/calendar">View all <ArrowRight className="h-3.5 w-3.5 ml-1" /></Link>
+            </Button>
           </div>
+          {!upcoming?.length ? (
+            <div className="text-center text-muted-foreground text-sm py-8">No upcoming events</div>
+          ) : (
+            <div className="space-y-3">
+              {upcoming.map((ev: any) => (
+                <div key={ev.id} className="flex items-start gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary grid place-items-center">
+                    <CalIcon className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{ev.title}</div>
+                    <div className="text-xs text-muted-foreground">{formatDate(ev.starts_at?.slice(0, 10))}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -240,8 +295,8 @@ function greet() {
 }
 
 function StatCard({
-  label, value, icon: Icon, tone = "default", small = false,
-}: { label: string; value: string; icon: any; tone?: "income" | "expense" | "warning" | "default"; small?: boolean }) {
+  label, value, icon: Icon, tone = "default", small = false, onClick,
+}: { label: string; value: string; icon: any; tone?: "income" | "expense" | "warning" | "default"; small?: boolean; onClick?: () => void }) {
   const toneClass = {
     income: "text-income bg-income/10",
     expense: "text-expense bg-expense/10",
@@ -249,7 +304,10 @@ function StatCard({
     default: "text-primary bg-primary/10",
   }[tone];
   return (
-    <div className="surface-card rounded-2xl p-4 sm:p-5">
+    <button
+      onClick={onClick}
+      className="surface-card rounded-2xl p-4 sm:p-5 w-full text-left group hover:shadow-lifted hover:scale-[1.02] active:scale-[0.99] transition-all duration-150 cursor-pointer"
+    >
       <div className="flex items-start justify-between">
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</div>
         <div className={`h-8 w-8 rounded-lg grid place-items-center ${toneClass}`}>
@@ -259,7 +317,10 @@ function StatCard({
       <div className={`mt-3 font-semibold tabular-nums tracking-tight ${small ? "text-xl" : "text-2xl sm:text-[28px]"}`}>
         {value}
       </div>
-    </div>
+      <div className="mt-1.5 text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+        View in ledger <ArrowRight className="h-2.5 w-2.5" />
+      </div>
+    </button>
   );
 }
 

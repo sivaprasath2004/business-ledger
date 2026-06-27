@@ -23,6 +23,7 @@ import { Route as AuthenticatedIncomeRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedImportRouteImport } from './routes/_authenticated.import'
 import { Route as AuthenticatedExportRouteImport } from './routes/_authenticated.export'
 import { Route as AuthenticatedExpensesRouteImport } from './routes/_authenticated.expenses'
+import { Route as AuthenticatedExcelRouteImport } from './routes/_authenticated.excel'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated.customers'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated.calendar'
@@ -96,6 +97,11 @@ const AuthenticatedExpensesRoute = AuthenticatedExpensesRouteImport.update({
   path: '/expenses',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedExcelRoute = AuthenticatedExcelRouteImport.update({
+  id: '/excel',
+  path: '/excel',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -119,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/excel': typeof AuthenticatedExcelRoute
   '/expenses': typeof AuthenticatedExpensesRoute
   '/export': typeof AuthenticatedExportRoute
   '/import': typeof AuthenticatedImportRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/excel': typeof AuthenticatedExcelRoute
   '/expenses': typeof AuthenticatedExpensesRoute
   '/export': typeof AuthenticatedExportRoute
   '/import': typeof AuthenticatedImportRoute
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/customers': typeof AuthenticatedCustomersRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/excel': typeof AuthenticatedExcelRoute
   '/_authenticated/expenses': typeof AuthenticatedExpensesRoute
   '/_authenticated/export': typeof AuthenticatedExportRoute
   '/_authenticated/import': typeof AuthenticatedImportRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/customers'
     | '/dashboard'
+    | '/excel'
     | '/expenses'
     | '/export'
     | '/import'
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/customers'
     | '/dashboard'
+    | '/excel'
     | '/expenses'
     | '/export'
     | '/import'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/_authenticated/calendar'
     | '/_authenticated/customers'
     | '/_authenticated/dashboard'
+    | '/_authenticated/excel'
     | '/_authenticated/expenses'
     | '/_authenticated/export'
     | '/_authenticated/import'
@@ -333,6 +345,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedExpensesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/excel': {
+      id: '/_authenticated/excel'
+      path: '/excel'
+      fullPath: '/excel'
+      preLoaderRoute: typeof AuthenticatedExcelRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -361,6 +380,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedExcelRoute: typeof AuthenticatedExcelRoute
   AuthenticatedExpensesRoute: typeof AuthenticatedExpensesRoute
   AuthenticatedExportRoute: typeof AuthenticatedExportRoute
   AuthenticatedImportRoute: typeof AuthenticatedImportRoute
@@ -377,6 +397,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedCustomersRoute: AuthenticatedCustomersRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedExcelRoute: AuthenticatedExcelRoute,
   AuthenticatedExpensesRoute: AuthenticatedExpensesRoute,
   AuthenticatedExportRoute: AuthenticatedExportRoute,
   AuthenticatedImportRoute: AuthenticatedImportRoute,

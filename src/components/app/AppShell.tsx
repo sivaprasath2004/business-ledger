@@ -3,7 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, BookOpen, TrendingUp, TrendingDown, Users, Truck,
   FileText, Calendar, StickyNote, BarChart3, Settings, LogOut,
-  Upload, Download, Menu, X, Search, Plus, Sparkles, Sun, Moon, ChevronDown,
+  Upload, Download, Menu, X, Search, Plus, Sparkles, Sun, Moon, ChevronDown, Table2,
   Wallet,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
@@ -38,8 +38,7 @@ const navGroups: { label: string; items: { to: string; label: string; icon: any 
   {
     label: "People",
     items: [
-      { to: "/customers", label: "Customers", icon: Users },
-      { to: "/vendors", label: "Vendors", icon: Truck },
+      { to: "/customers", label: "Customers & Vendors", icon: Users },
     ],
   },
   {
@@ -52,6 +51,7 @@ const navGroups: { label: string; items: { to: string; label: string; icon: any 
   {
     label: "Data",
     items: [
+      { to: "/excel", label: "Excel View", icon: Table2 },
       { to: "/import", label: "Import", icon: Upload },
       { to: "/export", label: "Export", icon: Download },
     ],
